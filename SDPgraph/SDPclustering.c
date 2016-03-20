@@ -38,12 +38,12 @@ void readGraph(char * filename, graphStruct * pg) {
     while (isspace(line[i])) i++;
     if (line[i] != '#' && line[i] != '\0') {
       if (numReads == size) {
-	size *= 2;
-	nodesRead = (unsigned int *)realloc(nodesRead, size * sizeof(unsigned int));
+        size *= 2;
+        nodesRead = (unsigned int *)realloc(nodesRead, size * sizeof(unsigned int));
       }
       if (sscanf(line + i, "%u %u", nodesRead+numReads, nodesRead+numReads+1) != 2) {
-	fprintf(stderr,"\n Error reading graph file on line: %s\n", line);
-	exit(EXIT_FAILURE);
+        fprintf(stderr,"\n Error reading graph file on line: %s\n", line);
+        exit(EXIT_FAILURE);
       }
       if (nodesRead[numReads] > pg->numNodes) pg->numNodes = nodesRead[numReads];
       numReads++;
@@ -76,7 +76,7 @@ void readGraph(char * filename, graphStruct * pg) {
 double norm(double * v, int m) {
   int i;
   double res = 0.0;
-  
+
   for (i = 0; i < m; i++)
     res += v[i] * v[i];
 
@@ -86,7 +86,7 @@ double norm(double * v, int m) {
 double scalarProd(double * v1, double * v2, int m) {
   int i;
   double res = 0.0;
-  
+
   for (i = 0; i < m; i++)
     res += v1[i] * v2[i];
 
@@ -101,23 +101,23 @@ void initSpin(graphStruct * pg, int m) {
     pg->node[i].s = (double *)calloc(m, sizeof(double));
     if (pg->node[i].deg) {
       for (j = 0; j < m; j++)
-	pg->node[i].s[j] = pm1;
+        pg->node[i].s[j] = pm1;
       tmp = 1.0 / norm(pg->node[i].s, m);
       for (j = 0; j < m; j++)
-	pg->node[i].s[j] *= tmp;
+        pg->node[i].s[j] *= tmp;
     } else {
       for (j = 0; j < m; j++)
-	pg->node[i].s[j] = 0.0;
+        pg->node[i].s[j] = 0.0;
     }
   }
 }
 
 double oneStep(graphStruct * pg, int m, double gamma,
-	       double * totalMag, double * localField) {
+    double * totalMag, double * localField) {
   int i, j, k, ran, num;
   double tmp, diff, maxDiff, new;
   nodeStruct workNode;
-  
+
   for (i = 0; i < pg->numNodes; i++)
     pg->perm[i] = i;
   num = pg->numNodes;
@@ -133,21 +133,21 @@ double oneStep(graphStruct * pg, int m, double gamma,
     pg->perm[ran] = pg->perm[--num];
     if (workNode.deg) {
       for (j = 0; j < m; j++)
-	localField[j] = -gamma * totalMag[j];
+        localField[j] = -gamma * totalMag[j];
       for (k = 0; k < workNode.deg; k++)
-	for (j = 0; j < m; j++)
-	  localField[j] += pg->node[workNode.neigh[k]].s[j];
+        for (j = 0; j < m; j++)
+          localField[j] += pg->node[workNode.neigh[k]].s[j];
       tmp = norm(localField, m);
       if (tmp != 0.0) {
-	tmp = 1.0 / tmp;
-	diff = 0.0;
-	for (j = 0; j < m; j++) {
-	  new = tmp * localField[j];
-	  diff += (new - workNode.s[j]) * (new - workNode.s[j]);
-	  totalMag[j] += 2.0 * (new - workNode.s[j]);
-	  workNode.s[j] = new;
-	}
-	if (diff > maxDiff) maxDiff = diff;
+        tmp = 1.0 / tmp;
+        diff = 0.0;
+        for (j = 0; j < m; j++) {
+          new = tmp * localField[j];
+          diff += (new - workNode.s[j]) * (new - workNode.s[j]);
+          totalMag[j] += 2.0 * (new - workNode.s[j]);
+          workNode.s[j] = new;
+        }
+        if (diff > maxDiff) maxDiff = diff;
       }
     }
   }
@@ -174,8 +174,8 @@ void computeProjections(graphStruct * pg, int m) {
     if (pg->node[i].deg) {
       num++;
       for (j = 0; j < m; j++)
-	for (k = 0; k < m; k++)
-	  cov[j][k] += pg->node[i].s[j] * pg->node[i].s[k];
+        for (k = 0; k < m; k++)
+          cov[j][k] += pg->node[i].s[j] * pg->node[i].s[k];
     }
   for (j = 0; j < m; j++)
     for (k = 0; k < m; k++)
@@ -188,20 +188,20 @@ void computeProjections(graphStruct * pg, int m) {
       vec[i][j] = pm1 / sqrt(m);
     do {
       for (j = 0; j < m; j++)
-	new[j] = scalarProd(cov[j], vec[i], m);
+        new[j] = scalarProd(cov[j], vec[i], m);
       // ortogonalize w.r.t. previous eigenvectors
       for (k = 0; k < i; k++) {
-	tmp = scalarProd(new, vec[k], m);
-	for (j = 0; j < m; j++)
-	  new[j] -= tmp * vec[k][j];
+        tmp = scalarProd(new, vec[k], m);
+        for (j = 0; j < m; j++)
+          new[j] -= tmp * vec[k][j];
       }
       val[i] = scalarProd(new, vec[i], m);
       tmp = 1.0 / norm(new, m);
       dist = 0.0;
       for (j = 0; j < m; j++) {
-	new[j] *= tmp;
-	dist += (new[j] - vec[i][j]) * (new[j] - vec[i][j]);
-	vec[i][j] = new[j];
+        new[j] *= tmp;
+        dist += (new[j] - vec[i][j]) * (new[j] - vec[i][j]);
+        vec[i][j] = new[j];
       }
     } while (dist > EPS2);
     sumVal += val[i];
@@ -217,7 +217,7 @@ void computeProjections(graphStruct * pg, int m) {
     if (pg->node[i].deg) {
       printf("%i %i", i, pg->node[i].deg);
       for (j = 0; j < numProj; j++)
-	printf(" %g", scalarProd(pg->node[i].s, vec[j], m));
+        printf(" %g", scalarProd(pg->node[i].s, vec[j], m));
       printf("\n");
     } else {
       printf("%i 0\n", i);
@@ -229,7 +229,7 @@ int main(int argc, char *argv[]) {
   unsigned int m, maxIter, randomSeed, trueNumNodes, i, t;
   double gamma, maxDiff, *totalMag, *localField;
   graphStruct graph;
-  
+
   if (argc != 5 && argc != 6) {
     fprintf(stderr, "usage: %s <graphFile> <m> <maxIter> <randomSeed> [<gamma>]\n", argv[0]);
     exit(EXIT_FAILURE);
@@ -248,7 +248,7 @@ int main(int argc, char *argv[]) {
   printf("# running SDP clustering on data in file %s\n", argv[1]);
   printf("# num nodes = %i   num edges = %i\n", trueNumNodes, graph.numEdges);
   printf("# m = %i   maxIter = %i   gamma = %g   randomSeed = %i\n",
-	 m, maxIter, gamma, randomSeed);
+      m, maxIter, gamma, randomSeed);
   printf("# EPS1 = %g (convergence tolerance)  EPS2 = %g (eigensystem tolerance)\n", EPS1, EPS2);
   srandom(randomSeed);
   totalMag = (double *)calloc(m, sizeof(double));
