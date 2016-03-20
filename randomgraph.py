@@ -4,6 +4,7 @@
 """
 
 from scipy.sparse import coo_matrix
+from numba import jit
 
 
 import numpy as np
@@ -11,14 +12,14 @@ import numpy as np
 
 class Instance(object):
 
-    def __init__(self, n, a, b, x0, adj, seed):
+    def __init__(self, n, a, b, x0, coo, seed):
         self.n = n
         self.a = a
         self.b = b
         self.x0 = x0
-        self.adj = adj
+        self.coo = coo
+        self.adj = coo.tocsr()
         self.seed = seed
-
 
     def save(self, filename):
         """Saves the adjacency matrix in an output parsable
@@ -26,11 +27,49 @@ class Instance(object):
 
         """
 
-        coo = self.adj.tocoo()
+        coo = self.coo
         with open(filename, 'w') as fp:
             for src, dst in zip(coo.row, coo.col):
                 if src <= dst:
                     print(src, dst, file=fp)
+
+    @property
+    def d(self):
+        return (self.a + self.b) / 2
+
+    @property
+    def lam(self):
+        return (self.a - self.b)/np.sqrt(2.0 * (self.a + self.b))
+
+    def deg(self, node):
+        return len(self.adj.indices[self.adj.indptr[node]:self.adj.indptr[node+1]])
+
+    @property
+    def nedges(self):
+        coo = self.coo
+        s = 0
+        for src, dst in zip(coo.row, coo.col):
+            if src <= dst:
+                s += 1
+        return s
+
+@jit(nopython=True)
+def _generate(x0, a, b, seed):
+    np.random.seed(seed)
+    n = x0.shape[0]
+    inp, outp = a/n, b/n
+    rows, cols = [], []
+    for src in range(n):
+        for dst in range(src, n):
+            r = np.random.random()
+            if ((x0[src] * x0[dst] == +1 and r <= inp) or
+                (x0[src] * x0[dst] == -1 and r <= outp)):
+                rows.append(src)
+                cols.append(dst)
+                if src != dst:
+                    rows.append(dst)
+                    cols.append(src)
+    return rows, cols
 
 
 def generate(n, a, b, seed=None):
@@ -52,28 +91,16 @@ def generate(n, a, b, seed=None):
     rng = np.random.RandomState(seed)
 
     x0 = rng.choice([-1, +1], size=n)
-    print(x0)
-    print(x0.dtype)
+    #print(x0)
+    #print(x0.dtype)
 
-    inp, outp = a/n, b/n
+    rows, cols = _generate(x0, a, b, rng.randint(0, 0xFFFFFFFF))
 
-    rows, cols = [], []
-    for src in range(n):
-        for dst in range(src, n):
-            r = rng.uniform()
-            if ((x0[src] * x0[dst] == +1 and r <= inp) or
-                (x0[src] * x0[dst] == -1 and r <= outp)):
-                rows.append(src)
-                cols.append(dst)
-                if src != dst:
-                    rows.append(dst)
-                    cols.append(src)
-
-    adj = coo_matrix(
+    coo = coo_matrix(
         (np.ones(len(rows), dtype=np.int8), (np.array(rows), np.array(cols))),
-        shape=(n, n)).tocsr()
+        shape=(n, n))
 
-    return Instance(n, a, b, x0, adj, seed)
+    return Instance(n, a, b, x0, coo, seed)
 
 
 
@@ -84,3 +111,4 @@ if __name__ == '__main__':
     g = generate(n, a, b)
     print (g.adj.todense())
     g.save("test.txt")
+    print (g.deg(0), g.deg(1), g.deg(2), g.deg(3), g.deg(4))
