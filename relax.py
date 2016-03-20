@@ -46,14 +46,14 @@ def solve(graph, r, eta=None, epochs=1, seed=None, conv_tol=1e-4):
 
             # sum the spins over the neighbors of node
             #print (node, "node", "indices", indices[indptr[node]:indptr[node+1]])
-            cur = -eta * M + spins[indices[indptr[node]:indptr[node+1]]].sum(axis=0)
+            cur = -(2.0 * eta) * M + spins[indices[indptr[node]:indptr[node+1]]].sum(axis=0)
             curnorm = np.linalg.norm(cur)
             if np.fabs(curnorm) <= 1e-10:
                 # skip
                 continue
             cur /= curnorm
             diff = cur - spins[node]
-            M += 2.0 * diff
+            M += diff
             maxdiff = max(maxdiff, np.dot(diff, diff))
             spins[node] = cur
 
@@ -70,18 +70,22 @@ def solve(graph, r, eta=None, epochs=1, seed=None, conv_tol=1e-4):
 
     evals, evecs = np.linalg.eigh(cov)
     print ("evals", evals)
-    return np.sign(spins.dot(evecs[:, np.argmax(evals)]))
+    return np.sign(spins.dot(evecs[:, np.argmax(evals)])).astype(np.int)
 
 
 if __name__ == '__main__':
     from randomgraph import generate
 
     n = 1000
-    a = 5
+    a = 20
     b = 3
     g = generate(n, a, b)
     #print (g.adj.todense())
     g.save("test.txt")
 
     print ("d", g.d, "lam", g.lam)
-    print (solve(g, r=20, epochs=100))
+    assignment = solve(g, r=20, epochs=100)
+    print (assignment)
+    errors = min(np.count_nonzero(g.x0 - assignment),
+                 np.count_nonzero(g.x0 + assignment))
+    print ("errors", errors, "ratio", errors/g.n)
