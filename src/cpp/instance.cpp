@@ -27,7 +27,8 @@ static void sampleGraphWithGroundTruth(
   if (b < 0.0 || b > n)
     throw invalid_argument("b is out of range");
 
-  xorshift prng(seed);
+  //xorshift prng(seed);
+  default_random_engine prng(seed);
   bernoulli_distribution faircoin(0.5);
   uniform_real_distribution<double> unif(0.0, 1.0);
 
@@ -42,9 +43,10 @@ static void sampleGraphWithGroundTruth(
   const double outp = b/static_cast<double>(n);
 
   for (unsigned src = 0; src < n; src++) {
+    const int x0src = x0[src];
     for (unsigned dst = src; dst < n; dst++) {
       const double r = unif(prng);
-      const int x0ij = x0[src] * x0[dst];
+      const int x0ij = x0src * x0[dst];
       if ((x0ij == +1 && r <= inp) || (x0ij == -1 && r <= outp)) {
         entries.emplace_back(src, dst, 1);
         if (src != dst)
