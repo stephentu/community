@@ -75,16 +75,19 @@ def solve(graph, r, eta=None, epochs=1, seed=None, conv_tol=1e-4):
 
 if __name__ == '__main__':
     from randomgraph import generate
+    from contexttimer import Timer
 
-    n = 1000
+    #n = 64000
+    n = 128000
     a = 20
     b = 3
-    g = generate(n, a, b)
-    #print (g.adj.todense())
+    with Timer() as t:
+        g = generate(n, a, b)
+        print (t.elapsed, "seconds to generate instance")
     g.save("test.txt")
 
     print ("d", g.d, "lam", g.lam)
-    assignment = solve(g, r=20, epochs=100)
+    assignment = solve(g, r=100, epochs=100)
     print (assignment)
     errors = min(np.count_nonzero(g.x0 - assignment),
                  np.count_nonzero(g.x0 + assignment))

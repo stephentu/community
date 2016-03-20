@@ -62,8 +62,8 @@ def _generate(x0, a, b, seed):
     for src in range(n):
         for dst in range(src, n):
             r = np.random.random()
-            if ((x0[src] * x0[dst] == +1 and r <= inp) or
-                (x0[src] * x0[dst] == -1 and r <= outp)):
+            x0ij = x0[src] * x0[dst]
+            if ((x0ij == +1 and r <= inp) or (x0ij == -1 and r <= outp)):
                 rows.append(src)
                 cols.append(dst)
                 if src != dst:
