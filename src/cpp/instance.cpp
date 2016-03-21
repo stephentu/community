@@ -13,6 +13,7 @@
 #include <random>
 #include <vector>
 #include <exception>
+#include <utility>
 
 #include <getopt.h>
 #include <unistd.h>
@@ -118,7 +119,7 @@ estimator(const Eigen::VectorXd &predictions)
   return ret;
 }
 
-static vector<int> solve(
+static pair<vector<int>, bool> solve(
     const AdjMatrix &g,
     unsigned r,
     unsigned seed,
@@ -156,9 +157,10 @@ static vector<int> solve(
   for (unsigned i = 0; i < n; i++)
     pi.push_back(i);
 
+  double maxdiff = 0;
   for (unsigned epoch = 0; epoch < epochs; epoch++) {
-    double maxdiff = 0;
     shuffle(pi.begin(), pi.end(), prng);
+    maxdiff = 0;
     for (auto node : pi) {
       cur = -(2.0 * eta) * M;
       for (AdjMatrix::InnerIterator it(g, node); it; ++it)
@@ -187,7 +189,7 @@ static vector<int> solve(
   // principle component
   const Eigen::VectorXd v1 = eigh.eigenvectors().col(r - 1);
 
-  return estimator(spins.transpose() * v1);
+  return std::make_pair(estimator(spins.transpose() * v1), maxdiff <= conv_tol);
 }
 
 static double errorRate(const vector<int> &truth, const vector<int> &predict)
@@ -201,6 +203,14 @@ static double errorRate(const vector<int> &truth, const vector<int> &predict)
       match1++;
   }
   return std::min(match0, match1) / static_cast<double>(truth.size());
+}
+
+static double correlation(const vector<int> &truth, const vector<int> &predict)
+{
+  int s = 0;
+  for (unsigned i = 0; i < truth.size(); i++)
+    s += truth[i] * predict[i];
+  return s / static_cast<double>(truth.size());
 }
 
 int main(int argc, char **argv)
@@ -306,25 +316,45 @@ int main(int argc, char **argv)
 
   vector<int> x0;
   vector<Eigen::Triplet<unsigned>> entries;
-  {
-    scoped_timer t("sample graph", verbose);
-    sampleGraphWithGroundTruth(x0, entries, n, a, b, seed_gen);
-  }
 
   if (verbose)
     cout << "graph summary: d " << (a + b)/2.0
          << ", lambda " << ((a - b) / sqrt(2.0 * (a + b)))
          << endl;
 
+  timer t;
+  sampleGraphWithGroundTruth(x0, entries, n, a, b, seed_gen);
+  const double sampleMs = t.lap_ms();
+
+  if (verbose)
+    cout << "graph sampling took " << sampleMs << "ms" << endl;
+
   AdjMatrix g(n, n);
   g.setFromTriplets(entries.begin(), entries.end());
   g.makeCompressed();
 
-  auto predictions = solve(g, r, seed_opt, verbose);
+  t.lap();
+  const auto pp = solve(g, r, seed_opt, verbose);
+  const auto predictions = pp.first;
+  const auto converged = pp.second;
+  const double solveMs = t.lap_ms();
 
   const double error = errorRate(x0, predictions);
+  const double corr = correlation(x0, predictions);
 
-  cout << "error " << error << endl;
+  cout << "{"
+       << "\"n\": " << n
+       << ", \"r\": " << r
+       << ", \"a\": " << a
+       << ", \"b\": " << b
+       << ", \"seed_gen\": " << seed_gen
+       << ", \"seed_opt\": " << seed_opt
+       << ", \"error\": " << error
+       << ", \"correlation\": " << corr
+       << ", \"converged\": " << (converged ? "true" : "false")
+       << ", \"sample_ms\": " << sampleMs
+       << ", \"solve_ms\": " << solveMs
+       << "}" << endl;
 
   return 0;
 }
