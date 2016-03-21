@@ -108,8 +108,8 @@ private:
 
 public:
   scoped_timer(const std::string &region,
-               timer::Mode m = timer::T_CLK_GETTIMEOFDAY,
-               bool enabled = true)
+               bool enabled = true,
+               timer::Mode m = timer::T_CLK_GETTIMEOFDAY)
     : t(m), region(region), enabled(enabled)
   {}
 

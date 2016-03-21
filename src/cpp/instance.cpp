@@ -14,6 +14,9 @@
 #include <vector>
 #include <exception>
 
+#include <getopt.h>
+#include <unistd.h>
+
 #include "timer.hpp"
 
 #define likely(x)   __builtin_expect(!!(x), 1)
@@ -119,21 +122,22 @@ static vector<int> solve(
     const AdjMatrix &g,
     unsigned r,
     unsigned seed,
+    bool verbose,
     double eta = 0.0,
-    unsigned epochs = 10,
+    unsigned epochs = 100000,
     double conv_tol = 1e-4)
 {
   PRNG prng(seed);
-  bernoulli_distribution faircoin(0.5);
 
   const unsigned n = numNodes(g);
 
   if (eta <= 0.0)
     eta = 2.0 * numEdges(g) / static_cast<double>(n * n);
 
-  cout << "n " << n << ", r " << r << ", avgDegree " << avgDegree(g)
-       << ", eta " << eta << ", epochs " << epochs << ", conv_tol " << conv_tol
-       << endl;
+  if (verbose)
+    cout << "n " << n << ", r " << r << ", avgDegree " << avgDegree(g)
+         << ", eta " << eta << ", epochs " << epochs << ", conv_tol " << conv_tol
+         << endl;
 
   Eigen::MatrixXd spins(r, n); // Eigen dense matrices are optimized for column major
   for (unsigned node = 0; node < n; node++) {
@@ -168,7 +172,8 @@ static vector<int> solve(
       maxdiff = std::max(maxdiff, diff.squaredNorm());
       spins.col(node) = cur;
     }
-    cout << "epoch " << epoch << ", maxdiff " << maxdiff << endl;
+    if (verbose)
+      cout << "epoch " << epoch << ", maxdiff " << maxdiff << endl;
     if (maxdiff <= conv_tol)
       break;
   }
@@ -177,7 +182,7 @@ static vector<int> solve(
   const Eigen::MatrixXd cov = 1.0 / static_cast<double>(n) * (spins * spins.transpose());
   Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigh(cov);
 
-  cout << "evals " << eigh.eigenvalues() << endl;
+  //cout << "evals " << eigh.eigenvalues() << endl;
 
   // principle component
   const Eigen::VectorXd v1 = eigh.eigenvectors().col(r - 1);
@@ -201,10 +206,98 @@ static double errorRate(const vector<int> &truth, const vector<int> &predict)
 int main(int argc, char **argv)
 {
 
-  const unsigned n = 128000;
-  const double a = 20.0;
-  const double b = 3.0;
-  const unsigned r = 100;
+	int verbose = 0;
+  unsigned n = 0, r = 0, seed_gen = 0, seed_opt = 0;
+  double a = 0, b = 0;
+
+  while (1) {
+    static struct option long_options[] =
+    {
+      {"n"        , required_argument , 0        , 'n'} ,
+      {"a"        , required_argument , 0        , 'a'} ,
+      {"b"        , required_argument , 0        , 'b'} ,
+      {"r"        , required_argument , 0        , 'r'} ,
+      {"seed-gen" , required_argument , 0        , 'g'} ,
+      {"seed-opt" , required_argument , 0        , 'o'} ,
+      {"verbose"  , no_argument       , &verbose , 1}   ,
+      {0, 0, 0, 0}
+    };
+    int option_index = 0;
+    int c = getopt_long(argc, argv, "n:a:b:r:g:o:", long_options, &option_index);
+    if (c == -1)
+      break;
+
+    switch (c) {
+    case 0:
+      if (long_options[option_index].flag != 0)
+        break;
+      abort();
+      break;
+
+    case 'n':
+      n = strtoul(optarg, nullptr, 10);
+      break;
+
+    case 'a':
+      a = strtod(optarg, nullptr);
+      break;
+
+    case 'b':
+      b = strtod(optarg, nullptr);
+      break;
+
+    case 'r':
+      r = strtoul(optarg, nullptr, 10);
+      break;
+
+    case 'g':
+      seed_gen = strtoul(optarg, nullptr, 10);
+      break;
+
+    case 'o':
+      seed_opt = strtoul(optarg, nullptr, 10);
+      break;
+
+    case '?':
+      exit(1);
+
+    default:
+      abort();
+    }
+  }
+
+  if (!n) {
+    cerr << "n must be positive" << endl;
+    exit(1);
+  }
+
+  if (!r) {
+    cerr << "r must be positive" << endl;
+    exit(1);
+  }
+
+  if (r >= n) {
+    cerr << "warning: r >= n, setting r = n" << endl;
+    r = n;
+  }
+
+  if (a < 0.0 || a > static_cast<double>(n)) {
+    cerr << "a is invalid" << endl;
+    exit(1);
+  }
+
+  if (b < 0.0 || b > static_cast<double>(n)) {
+    cerr << "b is invalid" << endl;
+    exit(1);
+  }
+
+  if (a <= b)
+    cerr << "warning: a > b is needed for positive lambda" << endl;
+
+  //const unsigned n = 128000;
+  //const double a = 20.0;
+  //const double b = 3.0;
+  //const unsigned r = 100;
 
   //const unsigned n = 5;
   //const double a = 3;
@@ -214,28 +307,24 @@ int main(int argc, char **argv)
   vector<int> x0;
   vector<Eigen::Triplet<unsigned>> entries;
   {
-    scoped_timer t("sample graph");
-    sampleGraphWithGroundTruth(x0, entries, n, a, b, 8323753);
+    scoped_timer t("sample graph", verbose);
+    sampleGraphWithGroundTruth(x0, entries, n, a, b, seed_gen);
   }
+
+  if (verbose)
+    cout << "graph summary: d " << (a + b)/2.0
+         << ", lambda " << ((a - b) / sqrt(2.0 * (a + b)))
+         << endl;
 
   AdjMatrix g(n, n);
   g.setFromTriplets(entries.begin(), entries.end());
   g.makeCompressed();
 
-  //cout << "nonZeroDegree(0) " << nonZeroDegree(g, 0) << endl;
-  //cout << "nonZeroDegree(1) " << nonZeroDegree(g, 1) << endl;
-  //cout << "nonZeroDegree(2) " << nonZeroDegree(g, 2) << endl;
-  //cout << "numEdges() " << numEdges(g) << endl;
-  //cout << Eigen::MatrixXd(g) << endl;
-  //cout << "degree(0) " << degree(g, 0) << endl;
-  //cout << "degree(1) " << degree(g, 1) << endl;
-  //cout << "degree(2) " << degree(g, 2) << endl;
-  //cout << "degree(3) " << degree(g, 3) << endl;
-  //cout << "degree(4) " << degree(g, 4) << endl;
+  auto predictions = solve(g, r, seed_opt, verbose);
 
-  auto predictions = solve(g, r, 39243, 0.0, 1000);
+  const double error = errorRate(x0, predictions);
 
-  cout << "error " << errorRate(x0, predictions) << endl;
+  cout << "error " << error << endl;
 
   return 0;
 }
