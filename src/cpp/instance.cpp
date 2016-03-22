@@ -10,7 +10,7 @@
 #include <cmath>
 #include <iostream>
 #include <algorithm>
-#include <random>
+
 #include <vector>
 #include <exception>
 #include <utility>
@@ -20,17 +20,31 @@
 
 #include "timer.hpp"
 
+// Boost.Random's implementation of mt19937 seems to be faster than the
+// built-in one from in <random>. Unfortunately, Boost.Random generators do not
+// seem to be directly compatible with C++11 distributions, so we have this
+// mess.
+#ifdef USE_BOOST_RANDOM
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/bernoulli_distribution.hpp>
+#include <boost/random/uniform_int_distribution.hpp>
+#include <boost/random/uniform_real_distribution.hpp>
+typedef ::boost::random::mt19937 PRNG;
+static ::boost::random::bernoulli_distribution<float> faircoin(0.5);
+static ::boost::random::uniform_real_distribution<float> unif(0.0, 1.0);
+#else
+#include <random>
+typedef ::std::minstd_rand PRNG;
+static ::std::bernoulli_distribution faircoin(0.5);
+static ::std::uniform_real_distribution<float> unif(0.0, 1.0);
+#endif
+
 #define likely(x)   __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
 typedef Eigen::SparseMatrix<unsigned, Eigen::ColMajor> AdjMatrix;
 
-typedef std::minstd_rand PRNG;
-
 using namespace std;
-
-static bernoulli_distribution faircoin(0.5);
-static uniform_real_distribution<float> unif(0.0, 1.0);
 
 static void sampleGraphWithGroundTruth(
     vector<int> &x0,
@@ -159,7 +173,14 @@ static pair<vector<int>, bool> solve(
 
   double maxdiff = 0;
   for (unsigned epoch = 0; epoch < epochs; epoch++) {
+#ifdef USE_BOOST_RANDOM
+    random_shuffle(pi.begin(), pi.end(), [&prng](int i) {
+        ::boost::random::uniform_int_distribution<> unif(0, i-1);
+        return unif(prng);
+    });
+#else
     shuffle(pi.begin(), pi.end(), prng);
+#endif
     maxdiff = 0;
     for (auto node : pi) {
       cur = -(2.0 * eta) * M;
@@ -184,8 +205,6 @@ static pair<vector<int>, bool> solve(
   const Eigen::MatrixXd cov = 1.0 / static_cast<double>(n) * (spins * spins.transpose());
   Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigh(cov);
 
-  //cout << "evals " << eigh.eigenvalues() << endl;
-
   // principle component
   const Eigen::VectorXd v1 = eigh.eigenvectors().col(r - 1);
 
@@ -195,7 +214,7 @@ static pair<vector<int>, bool> solve(
 static double errorRate(const vector<int> &truth, const vector<int> &predict)
 {
   unsigned match0 = 0;
-  unsigned match1 = 1;
+  unsigned match1 = 0;
   for (unsigned i = 0; i < truth.size(); i++) {
     if (truth[i] == predict[i])
       match0++;
@@ -215,7 +234,6 @@ static double correlation(const vector<int> &truth, const vector<int> &predict)
 
 int main(int argc, char **argv)
 {
-
 	int verbose = 0;
   unsigned n = 0, r = 0, seed_gen = 0, seed_opt = 0;
   double a = 0, b = 0;
@@ -303,16 +321,6 @@ int main(int argc, char **argv)
 
   if (a <= b)
     cerr << "warning: a > b is needed for positive lambda" << endl;
-
-  //const unsigned n = 128000;
-  //const double a = 20.0;
-  //const double b = 3.0;
-  //const unsigned r = 100;
-
-  //const unsigned n = 5;
-  //const double a = 3;
-  //const double b = 2;
-  //const unsigned r = 2;
 
   vector<int> x0;
   vector<Eigen::Triplet<unsigned>> entries;
