@@ -10,6 +10,7 @@
 #include <cmath>
 #include <iostream>
 #include <algorithm>
+#include <limits>
 
 #include <vector>
 #include <exception>
@@ -350,6 +351,7 @@ int main(int argc, char **argv)
   const double error = errorRate(x0, predictions);
   const double corr = correlation(x0, predictions);
 
+  cout.precision(std::numeric_limits<double>::max_digits10);
   cout << "{"
        << "\"n\": " << n
        << ", \"r\": " << r
