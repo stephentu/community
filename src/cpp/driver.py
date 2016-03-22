@@ -44,7 +44,7 @@ def parameters(n, d, lam):
 
 
 def goOnce(idx, n, d, lam, trial, a, b, seedSample, seedOpt):
-    cmd = "./instance --n {} --r {} --a {} --b {} --seed-gen {} --seed-opt {}".format(n, 100, a, b, seedSample, seedOpt)
+    cmd = "./instance --n {} --r {} --a {:.17f} --b {:.17f} --seed-gen {} --seed-opt {}".format(n, 100, a, b, seedSample, seedOpt)
     print cmd
     subprocess.call(cmd + " > results/{}.json".format(idx), shell=True)
 
