@@ -2,6 +2,8 @@ package edu.berkeley.cs.amplab.community
 
 import collection.mutable.HashSet
 
+case class GridPoint(n: Int, trial: Int, a: Double, b: Double, seedSample: Long, seedOpt: Long)
+
 object Grid {
 
   val DefaultLambdas = Seq(1.0, 1.005, 1.01, 1.015, 1.02, 1.025, 1.03)
@@ -17,9 +19,6 @@ object Grid {
       candidate
     }
   }
-
-  case class GridPoint(n: Int, trial: Int,
-    a: Double, b: Double, seedSample: Long, seedOpt: Long)
 
   def parameters(n: Int, d: Double, lam: Double, tol: Double = 1e-8): (Double, Double) = {
     val b = d - lam * Math.sqrt(d)

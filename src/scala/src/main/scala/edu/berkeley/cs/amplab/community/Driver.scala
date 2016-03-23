@@ -10,23 +10,17 @@ import org.apache.spark.SparkFiles
 object Driver {
 
   case class Config(
-    sparkMaster: String = "",
     instanceBinPath: String = "")
 
-	def main(args: Array[String]) {
-		val parser: scopt.OptionParser[Config] = new scopt.OptionParser[Config]("Driver") {
-					head("Driver")
-					opt[String]("master") required() action { (x, c) => c.copy(sparkMaster=x) }
-					opt[String]("instance-binary") required() action { (x, c) => c.copy(instanceBinPath=x) }
+  def main(args: Array[String]) {
+    val parser: scopt.OptionParser[Config] = new scopt.OptionParser[Config]("Driver") {
+          head("Driver")
+          opt[String]("instance-binary") required() action { (x, c) => c.copy(instanceBinPath=x) }
     }
+    println(args)
     val config = parser.parse(args, Config()).getOrElse(sys.exit(1))
 
-    val conf = new SparkConf()
-      .setMaster(config.sparkMaster)
-      .setAppName("Driver")
-      .setJars(SparkContext.jarOfClass(this.getClass).toSeq)
-
-    conf.remove("spark.jars")
+    val conf = new SparkConf().setAppName("Driver")
 
     val sc = new SparkContext(conf)
     sc.setCheckpointDir("/tmp/spark-checkpoint")
