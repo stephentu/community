@@ -11,9 +11,10 @@
 #include <iostream>
 #include <algorithm>
 #include <limits>
+#include <exception>
 
 #include <vector>
-#include <exception>
+#include <stdexcept>
 #include <utility>
 
 #include <getopt.h>
