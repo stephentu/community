@@ -4,6 +4,8 @@ import collection.mutable.HashSet
 
 object Grid {
 
+  val DefaultLambdas = Seq(1.0, 1.005, 1.01, 1.015, 1.02, 1.025, 1.03)
+
   private[this] class LongSamplerWithoutReplacement {
     private val seen = new HashSet[Long]
     def next(): Long = {

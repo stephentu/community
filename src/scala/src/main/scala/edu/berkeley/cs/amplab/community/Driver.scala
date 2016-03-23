@@ -5,6 +5,7 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
+import org.apache.spark.SparkFiles
 
 object Driver {
 
@@ -30,6 +31,11 @@ object Driver {
     val sc = new SparkContext(conf)
     sc.setCheckpointDir("/tmp/spark-checkpoint")
     sc.addFile(config.instanceBinPath)
+
+    val rdd = sc.parallelize(Grid.grid(16000, 5.0, Grid.DefaultLambdas, 1))
+    val result = rdd.pipe(SparkFiles.get(config.instanceBinPath)).collect()
+
+    println(result)
 
   }
 
