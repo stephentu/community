@@ -15,4 +15,4 @@ spark-submit \
   --driver-memory 100g \
   --jars $FWDIR/target/scala-2.10/community-assembly-0.1.0-SNAPSHOT.jar \
   target/scala-2.10/community-assembly-0.1.0-SNAPSHOT.jar \
-  --instance-binary /home/eecs/sltu/community/src/cpp/instance
+  --instance-binary /home/eecs/sltu/bin/instance-pipe.sh

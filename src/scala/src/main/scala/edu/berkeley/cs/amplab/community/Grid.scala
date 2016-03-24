@@ -2,18 +2,29 @@ package edu.berkeley.cs.amplab.community
 
 import collection.mutable.HashSet
 
-case class GridPoint(n: Int, trial: Int, a: Double, b: Double, seedSample: Long, seedOpt: Long)
+case class GridPoint(n: Int, trial: Int, a: Double, b: Double, seedSample: Long, seedOpt: Long) {
+  def toCLI(r: Int): String = 
+    Seq("--n", n.toString,
+        "--r", r.toString,
+        "--a", a.toString,
+        "--b", b.toString,
+        "--seed-gen", seedSample.toString,
+        "--seed-opt", seedOpt.toString).mkString(" ")
+}
 
 object Grid {
 
   val DefaultLambdas = Seq(1.0, 1.005, 1.01, 1.015, 1.02, 1.025, 1.03)
 
+  private def asUnsignedLong(x: Int): Long = 
+    x & 0x00000000ffffffffL
+
   private[this] class LongSamplerWithoutReplacement {
     private val seen = new HashSet[Long]
     def next(): Long = {
-      var candidate = util.Random.nextInt.toLong
+      var candidate = asUnsignedLong(util.Random.nextInt) 
       while (seen.contains(candidate)) {
-        candidate = util.Random.nextInt.toLong
+        candidate = asUnsignedLong(util.Random.nextInt)
       }
       seen += candidate
       candidate
