@@ -26,15 +26,22 @@ object Driver {
     sc.setCheckpointDir("/tmp/spark-checkpoint")
 
     val r = 100
+    val d = 10.0
+    val hdfsFileName = s"/community-results-d${d}"
+    println(s"Driver r=${r}, d=${d}")
+    println(s"Saving to hdfsFileName=${hdfsFileName}")
 
-    val grid = Grid.grid(16000, 5.0, Grid.DefaultLambdas).map(_.toCLI(r))
+    val grid =
+      Grid.grid(16000, d, Grid.DefaultLambdas) ++
+      Grid.grid(32000, d, Grid.DefaultLambdas)
     println("Grid length: " + grid.size)
-    val rdd = sc.parallelize(grid)
+
+    val rdd = sc.parallelize(grid.map(_.toCLI(r)))
     val result = rdd.pipe(config.instanceBinPath)
     result.cache()
     println("result.count: " + result.count())
-    result.saveAsTextFile("/community-results")    
 
+    result.saveAsTextFile(hdfsFileName)
   }
 
 }
