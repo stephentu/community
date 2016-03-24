@@ -25,11 +25,12 @@ object Driver {
     val sc = new SparkContext(conf)
     sc.setCheckpointDir("/tmp/spark-checkpoint")
 
-    val grid = Grid.grid(16000, 5.0, Grid.DefaultLambdas, 1).map(_.toCLI(100))
+    val r = 100
+
+    val grid = Grid.grid(16000, 5.0, Grid.DefaultLambdas).map(_.toCLI(r))
     println("Grid length: " + grid.size)
     val rdd = sc.parallelize(grid)
     val result = rdd.pipe(config.instanceBinPath)
-    //val result = rdd.pipe("cat")
     result.cache()
     println("result.count: " + result.count())
     result.saveAsTextFile("/community-results")    

@@ -1,5 +1,6 @@
 #!/bin/bash
-read args
-if [ -n "$args" ]; then
-    /home/eecs/sltu/bin/instance $args
-fi
+while read args ; do
+    if [ -n "$args" ]; then
+        /home/eecs/sltu/bin/instance $args
+    fi
+done
