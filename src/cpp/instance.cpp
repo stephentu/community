@@ -22,6 +22,8 @@
 
 #include "timer.hpp"
 
+typedef double SamplingFloatType;
+
 // Boost.Random's implementation of mt19937 seems to be faster than the
 // built-in one from in <random>. Unfortunately, Boost.Random generators do not
 // seem to be directly compatible with C++11 distributions, so we have this
@@ -32,13 +34,13 @@
 #include <boost/random/uniform_int_distribution.hpp>
 #include <boost/random/uniform_real_distribution.hpp>
 typedef ::boost::random::mt19937 PRNG;
-static ::boost::random::bernoulli_distribution<float> faircoin(0.5);
-static ::boost::random::uniform_real_distribution<float> unif(0.0, 1.0);
+static ::boost::random::bernoulli_distribution<SamplingFloatType> faircoin(0.5);
+static ::boost::random::uniform_real_distribution<SamplingFloatType> unif(0.0, 1.0);
 #else
 #include <random>
 typedef ::std::minstd_rand PRNG;
 static ::std::bernoulli_distribution faircoin(0.5);
-static ::std::uniform_real_distribution<float> unif(0.0, 1.0);
+static ::std::uniform_real_distribution<SamplingFloatType> unif(0.0, 1.0);
 #endif
 
 #define likely(x)   __builtin_expect(!!(x), 1)
@@ -70,13 +72,13 @@ static void sampleGraphWithGroundTruth(
   for (unsigned i = 0; i < n; i++)
     x0.push_back(faircoin(prng) ? +1.0 : -1.0);
 
-  const float inp = a/static_cast<float>(n);
-  const float outp = b/static_cast<float>(n);
+  const SamplingFloatType inp = a/static_cast<SamplingFloatType>(n);
+  const SamplingFloatType outp = b/static_cast<SamplingFloatType>(n);
 
   for (unsigned src = 0; src < n; src++) {
     const int x0src = x0[src];
     for (unsigned dst = src; dst < n; dst++) {
-      const float r = unif(prng);
+      const SamplingFloatType r = unif(prng);
       const int x0ij = x0src * x0[dst];
       if (unlikely((x0ij == +1 && r <= inp) || (x0ij == -1 && r <= outp))) {
         entries.emplace_back(src, dst, 1);
@@ -147,13 +149,15 @@ static pair<vector<int>, bool> solve(
   PRNG prng(seed);
 
   const unsigned n = numNodes(g);
+  const unsigned nedges = numEdges(g);
 
   if (eta <= 0.0)
-    eta = 2.0 * numEdges(g) / static_cast<double>(n * n);
+    eta = 2.0 * nedges / static_cast<double>(n * n);
 
   if (verbose)
     cout << "n " << n << ", r " << r << ", avgDegree " << avgDegree(g)
-         << ", eta " << eta << ", epochs " << epochs << ", conv_tol " << conv_tol
+         << ", numEdges " << nedges << ", eta " << eta
+         << ", epochs " << epochs << ", conv_tol " << conv_tol
          << endl;
 
   Eigen::MatrixXd spins(r, n); // Eigen dense matrices are optimized for column major
@@ -239,6 +243,7 @@ int main(int argc, char **argv)
 	int verbose = 0;
   unsigned n = 0, r = 0, seed_gen = 0, seed_opt = 0;
   double a = 0, b = 0;
+  double eta = 0.0;
 
   while (1) {
     static struct option long_options[] =
@@ -249,11 +254,12 @@ int main(int argc, char **argv)
       {"r"        , required_argument , 0        , 'r'} ,
       {"seed-gen" , required_argument , 0        , 'g'} ,
       {"seed-opt" , required_argument , 0        , 'o'} ,
+      {"eta"      , required_argument , 0        , 't'} ,
       {"verbose"  , no_argument       , &verbose , 1}   ,
-      {0, 0, 0, 0}
+      {0          , 0                 , 0        , 0}
     };
     int option_index = 0;
-    int c = getopt_long(argc, argv, "n:a:b:r:g:o:", long_options, &option_index);
+    int c = getopt_long(argc, argv, "n:a:b:r:g:o:t:", long_options, &option_index);
     if (c == -1)
       break;
 
@@ -286,6 +292,10 @@ int main(int argc, char **argv)
 
     case 'o':
       seed_opt = strtoul(optarg, nullptr, 10);
+      break;
+
+    case 't':
+      eta = strtod(optarg, nullptr);
       break;
 
     case '?':
@@ -324,6 +334,11 @@ int main(int argc, char **argv)
   if (a <= b)
     cerr << "warning: a > b is needed for positive lambda" << endl;
 
+  if (eta < 0.0) {
+    cerr << "eta must be >= 0" << endl;
+    exit(1);
+  }
+
   vector<int> x0;
   vector<Eigen::Triplet<unsigned>> entries;
 
@@ -344,7 +359,7 @@ int main(int argc, char **argv)
   g.makeCompressed();
 
   t.lap();
-  const auto pp = solve(g, r, seed_opt, verbose);
+  const auto pp = solve(g, r, seed_opt, verbose, eta);
   const auto predictions = pp.first;
   const auto converged = pp.second;
   const double solveMs = t.lap_ms();
