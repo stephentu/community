@@ -249,7 +249,7 @@ static unsigned numPositiveLabels(const vector<int> &truth)
 
 int main(int argc, char **argv)
 {
-	int verbose = 0;
+  int verbose = 0;
   unsigned n = 0, r = 0, seed_gen = 0, seed_opt = 0;
   double a = 0, b = 0;
   double eta = 0.0;
