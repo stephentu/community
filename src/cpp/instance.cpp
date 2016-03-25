@@ -238,6 +238,15 @@ static double correlation(const vector<int> &truth, const vector<int> &predict)
   return s / static_cast<double>(truth.size());
 }
 
+static unsigned numPositiveLabels(const vector<int> &truth)
+{
+  unsigned s = 0;
+  for (auto label : truth)
+    if (label == +1)
+      s++;
+  return s;
+}
+
 int main(int argc, char **argv)
 {
 	int verbose = 0;
@@ -354,8 +363,10 @@ int main(int argc, char **argv)
   sampleGraphWithGroundTruth(x0, entries, n, a, b, seed_gen);
   const double sampleMs = t.lap_ms();
 
-  if (verbose)
+  if (verbose) {
     cout << "graph sampling took " << sampleMs << "ms" << endl;
+    cout << "ground truth: numPositiveLabels " << numPositiveLabels(x0) << endl;
+  }
 
   AdjMatrix g(n, n);
   g.setFromTriplets(entries.begin(), entries.end());
