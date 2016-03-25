@@ -156,8 +156,8 @@ static pair<vector<int>, bool> solve(
 
   if (verbose)
     cout << "n " << n << ", r " << r << ", avgDegree " << avgDegree(g)
-         << ", numEdges " << nedges << ", eta " << eta
-         << ", epochs " << epochs << ", conv_tol " << conv_tol
+         << ", numDistinctEdges " << nedges << ", numTotalEdges " << g.nonZeros()
+         << ", eta " << eta << ", epochs " << epochs << ", conv_tol " << conv_tol
          << endl;
 
   Eigen::MatrixXd spins(r, n); // Eigen dense matrices are optimized for column major
@@ -342,10 +342,13 @@ int main(int argc, char **argv)
   vector<int> x0;
   vector<Eigen::Triplet<unsigned>> entries;
 
-  if (verbose)
-    cout << "graph summary: d " << (a + b)/2.0
-         << ", lambda " << ((a - b) / sqrt(2.0 * (a + b)))
-         << endl;
+  if (verbose) {
+    const double d = (a + b) / 2.0;
+    const double lambda = (a - b) / sqrt(2.0 * (a + b));
+    const double expectedTotalEdges = a + static_cast<double>(n-1) * d;
+    cout << "graph summary: d " << d << ", lambda " << lambda
+         << ", expectedTotalEdges " << expectedTotalEdges << endl;
+  }
 
   timer t;
   sampleGraphWithGroundTruth(x0, entries, n, a, b, seed_gen);
