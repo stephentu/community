@@ -50,6 +50,28 @@ typedef Eigen::SparseMatrix<unsigned, Eigen::ColMajor> AdjMatrix;
 
 using namespace std;
 
+static void makeRange(unsigned n, vector<unsigned> &range)
+{
+  range.clear();
+  range.reserve(n);
+  for (unsigned i = 0; i < n; i++)
+    range.push_back(i);
+}
+
+static void randomPermutation(
+    vector<unsigned> &pi,
+    PRNG &prng)
+{
+#ifdef USE_BOOST_RANDOM
+  random_shuffle(pi.begin(), pi.end(), [&prng](int i) {
+      ::boost::random::uniform_int_distribution<> unif(0, i-1);
+      return unif(prng);
+  });
+#else
+  shuffle(pi.begin(), pi.end(), prng);
+#endif
+}
+
 static void sampleGraphWithGroundTruth(
     vector<int> &x0,
     vector<Eigen::Triplet<unsigned>> &entries,
@@ -66,11 +88,16 @@ static void sampleGraphWithGroundTruth(
   PRNG prng(seed);
 
   x0.clear();
-  x0.reserve(n);
+  x0.resize(n);
 
   // generate ground truth
-  for (unsigned i = 0; i < n; i++)
-    x0.push_back(faircoin(prng) ? +1.0 : -1.0);
+  vector<unsigned> pi;
+  makeRange(n, pi);
+  randomPermutation(pi, prng);
+  for (unsigned i = 0; i < n/2; i++)
+    x0[pi[i]] = +1.0;
+  for (unsigned i = n/2; i < n; i++)
+    x0[pi[i]] = -1.0;
 
   const SamplingFloatType inp = a/static_cast<SamplingFloatType>(n);
   const SamplingFloatType outp = b/static_cast<SamplingFloatType>(n);
@@ -173,20 +200,11 @@ static pair<vector<int>, bool> solve(
   Eigen::VectorXd cur, diff;
 
   vector<unsigned> pi;
-  pi.reserve(n);
-  for (unsigned i = 0; i < n; i++)
-    pi.push_back(i);
+  makeRange(n, pi);
 
   double maxdiff = 0;
   for (unsigned epoch = 0; epoch < epochs; epoch++) {
-#ifdef USE_BOOST_RANDOM
-    random_shuffle(pi.begin(), pi.end(), [&prng](int i) {
-        ::boost::random::uniform_int_distribution<> unif(0, i-1);
-        return unif(prng);
-    });
-#else
-    shuffle(pi.begin(), pi.end(), prng);
-#endif
+    randomPermutation(pi, prng);
     maxdiff = 0;
     for (auto node : pi) {
       cur = -(2.0 * eta) * M;
@@ -317,6 +335,11 @@ int main(int argc, char **argv)
 
   if (!n) {
     cerr << "n must be positive" << endl;
+    exit(1);
+  }
+
+  if (n % 2) {
+    cerr << "n must be even" << endl;
     exit(1);
   }
 
